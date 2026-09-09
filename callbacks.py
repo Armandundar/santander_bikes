@@ -106,3 +106,62 @@ def _strip(bike: pd.DataFrame) -> list:
         tile("Quietest day", f"{quietest['bikes_hired']:,.0f}",
              f"{quietest['date']:%a %-d %b %Y} · {quietest['temp']:.1f}°C"),
     ]
+
+
+def register_predict(app):
+    """Fill the two forecast sections. Kept out of the page render so a slow or
+    dead network cannot stop the rest of the page from appearing."""
+    from dash import dcc
+
+    import layout as L
+    from model import load_model, numeric_sources
+    from weather import get_weather
+
+    @callback(
+        Output("jan-2026", "children"),
+        Output("jan-2026-chip", "children"),
+        Output("next-five", "children"),
+        Output("next-five-chip", "children"),
+        Input("variant-store", "data"),
+        Input("retry-store", "data"),
+    )
+    def fill(variant, retry):
+        variant = variant or DEFAULT_VARIANT
+        model = load_model()
+        sources = numeric_sources()
+        out = []
+        for kind, label in (("history", "Archive"), ("forecast", "Live forecast")):
+            result = get_weather(kind, retry or 0)
+            if not result.ok:
+                out += [
+                    L.notice(
+                        "Weather unavailable", result.error or "No weather returned.",
+                        action=html.Button("Try again", id={"role": "retry", "kind": kind},
+                                           n_clicks=0, className="btn"),
+                    ),
+                    L.chip("Offline", "alert"),
+                ]
+                continue
+            pred = result.df.copy()
+            pred["predicted"] = model.predict(pred)
+            out += [
+                html.Div([
+                    dcc.Graph(figure=F.forecast_bars(pred, variant),
+                              config={"displayModeBar": False, "responsive": True},
+                              style={"height": "300px"}),
+                    L.weather_table(pred, sources),
+                ]),
+                L.chip(label, "live"),
+            ]
+        return out[0], out[1], out[2], out[3]
+
+    @callback(
+        Output("retry-store", "data"),
+        Input({"role": "retry", "kind": ALL}, "n_clicks"),
+        State("retry-store", "data"),
+        prevent_initial_call=True,
+    )
+    def retry(clicks, current):
+        if not any(c or 0 for c in (clicks or [])):
+            return current or 0
+        return (current or 0) + 1

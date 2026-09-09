@@ -90,8 +90,13 @@ class Model:
         return out
 
 
-def load_model(path: Path = COEFFICIENTS_CSV) -> Model:
-    """Read the coefficients file, validating it rather than trusting it."""
+def load_model(path: Path | None = None) -> Model:
+    """Read the coefficients file, validating it rather than trusting it.
+
+    The path is resolved on every call rather than bound as a default, so the
+    module constant stays overridable.
+    """
+    path = path or COEFFICIENTS_CSV
     if not path.exists():
         return Model(error=f"{path.name} is missing, so no prediction can be made.")
     try:
@@ -127,9 +132,10 @@ def load_model(path: Path = COEFFICIENTS_CSV) -> Model:
     )
 
 
-def numeric_sources(path: Path = COEFFICIENTS_CSV) -> dict[str, str]:
+def numeric_sources(path: Path | None = None) -> dict[str, str]:
     """The optional `source` column: where each predictor's value comes from.
     Written by the notebook's Part 5; absent on an older two-column file."""
+    path = path or COEFFICIENTS_CSV
     if not path.exists():
         return {}
     try:
@@ -141,9 +147,10 @@ def numeric_sources(path: Path = COEFFICIENTS_CSV) -> dict[str, str]:
     return dict(zip(raw["term"].astype(str), raw["source"].astype(str)))
 
 
-def load_fit(path: Path = FIT_CSV) -> pd.DataFrame | None:
+def load_fit(path: Path | None = None) -> pd.DataFrame | None:
     """The candidate-model comparison, or None when the notebook has not
     exported one. Read and returned untouched: never re-ranked or recomputed."""
+    path = path or FIT_CSV
     if not path.exists():
         return None
     try:
@@ -153,9 +160,10 @@ def load_fit(path: Path = FIT_CSV) -> pd.DataFrame | None:
     return fit if {"model", "is_final"} <= set(fit.columns) else None
 
 
-def load_vif(path: Path = VIF_CSV) -> pd.DataFrame | None:
+def load_vif(path: Path | None = None) -> pd.DataFrame | None:
     """The collinearity check, or None when absent. Values are displayed exactly
     as exported — never recomputed with a constant, rescaled, capped or logged."""
+    path = path or VIF_CSV
     if not path.exists():
         return None
     try:

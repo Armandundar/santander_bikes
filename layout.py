@@ -6,6 +6,7 @@ import pandas as pd
 from dash import dcc, html
 
 from data_loader import DAY_ORDER, WEATHER_CHOICES, dataset_span
+from model import BASELINE_DAY as BASELINE, vif_band
 from theme import VARIANTS
 
 SEASONS = ["Winter", "Spring", "Summer", "Autumn"]
@@ -225,3 +226,214 @@ def explore_page(bike: pd.DataFrame) -> html.Div:
         ],
         className="enter",
     )
+
+
+# --- Predict tab -----------------------------------------------------------
+
+def table(headers: list, rows: list[list], *, right_from: int = 1,
+          row_classes: list[str] | None = None, narrow: bool = False) -> html.Div:
+    """A plain semantic table in its own scroll container.
+
+    The wrapper is not decoration: a wide table's min-content width cannot
+    shrink, so without it the table widens the whole page on a phone instead of
+    scrolling inside its card. `right_from` is the first column to right-align,
+    since every column from there on holds figures.
+    """
+    row_classes = row_classes or [""] * len(rows)
+    inner = html.Table(
+        [
+            html.Thead(html.Tr([
+                html.Th(h, className="tbl-num" if i >= right_from else "")
+                for i, h in enumerate(headers)
+            ])),
+            html.Tbody([
+                html.Tr(
+                    [html.Td(c, className="tbl-num num" if i >= right_from else "")
+                     for i, c in enumerate(row)],
+                    className=cls,
+                )
+                for row, cls in zip(rows, row_classes)
+            ]),
+        ],
+        className="tbl",
+    )
+    return html.Div(inner, className="tbl-wrap" + (" is-narrow" if narrow else ""),
+                    tabIndex="0")
+
+
+def notice(title: str, body: str, action=None, kind: str = "alert") -> html.Div:
+    """The designed stand-in for a section that cannot be drawn: a dead network,
+    a model the weather feed cannot serve, an unreadable file."""
+    return html.Div(
+        [
+            html.Div([html.Span(className="chip-dot"), title], className=f"chip is-{kind}"),
+            html.P(body, className="notice-body"),
+            action if action is not None else html.Span(),
+        ],
+        className="notice",
+    )
+
+
+def weather_table(pred: pd.DataFrame, sources: dict) -> html.Div:
+    """Each predicted day beside the weather values that produced it."""
+    headers = ["Day", "Date", "Temp °C", "Humidity %", "Rain mm",
+               "Wind km/h", "Sun W/m²", "Predicted hires"]
+    rows, classes = [], []
+    for _, r in pred.iterrows():
+        rows.append([
+            r["day_of_week"], f"{r['date']:%-d %b %Y}",
+            f"{r['temp']:.1f}", f"{r['humidity']:.0f}", f"{r['precip']:.1f}",
+            f"{r['windspeed']:.1f}", f"{r['solarradiation']:.0f}",
+            f"{r['predicted']:,.0f}",
+        ])
+        classes.append("is-weekend" if r["day_of_week"] in ("Sat", "Sun") else "")
+    return table(headers, rows, right_from=2, row_classes=classes)
+
+
+def coefficient_block(m, sources: dict) -> html.Div:
+    """The model in words, then the weekday effects, always against Monday."""
+    day_rows = [
+        [d, "baseline" if d == BASELINE else f"{m.days[d]:+,.0f}"]
+        for d in DAY_ORDER
+    ]
+    return html.Div(
+        [
+            html.Ul([html.Li(s) for _, _, s in m.sentences()], className="plain-list"),
+            html.P("Each effect holds the others fixed. Weekday effects are read "
+                   "against Monday, which is the baseline at zero.",
+                   className="card-note"),
+            table(["Day", "Effect vs Monday"], day_rows, narrow=True,
+                  row_classes=["is-baseline" if d == BASELINE else "" for d in DAY_ORDER]),
+        ]
+    )
+
+
+def fit_block(fit) -> html.Div:
+    """The candidate comparison, exactly as the notebook ranked it."""
+    final = fit[fit["is_final"].astype(str).str.lower() == "true"]
+    headers = ["Model", "Predictors", "Days fitted", "Adj R²", "Residual SE"]
+    has_rmse = "forecast_rmse_2025" in fit.columns
+    if has_rmse:
+        headers.append("2025 forecast RMSE")
+
+    rows, classes = [], []
+    for _, r in fit.iterrows():
+        is_final = str(r["is_final"]).lower() == "true"
+        name = [r["model"], html.Span("final", className="pill")] if is_final else r["model"]
+        formula = str(r.get("formula", "")).replace("bikes_hired ~ ", "")
+        row = [name, html.Span(formula, className="wrap-cell"), f"{int(r['n_obs']):,}",
+               f"{float(r['adj_r_squared']):.3f}", f"{float(r['residual_se']):,.0f}"]
+        if has_rmse:
+            row.append(f"{float(r['forecast_rmse_2025']):,.0f}")
+        rows.append(row)
+        classes.append("is-final" if is_final else "")
+
+    words = html.Span()
+    if not final.empty:
+        f = final.iloc[0]
+        words = html.P(
+            [f"The chosen model explains ",
+             html.B(f"{float(f['adj_r_squared']) * 100:.1f}%"),
+             " of the day-to-day variation, and a typical day's miss is about ",
+             html.B(f"{float(f['residual_se']):,.0f} hires"),
+             f". It was fitted on {int(f['n_obs']):,} days."],
+            className="card-note", style={"marginTop": "14px", "marginBottom": 0},
+        )
+    return html.Div([table(headers, rows, right_from=2, row_classes=classes), words])
+
+
+def vif_block(vif) -> html.Div:
+    """VIF exactly as exported. Severity is a colour and a written word."""
+    stages = [s for s in ("before", "after") if s in set(vif.get("stage", []))]
+    if not stages:
+        stages = [None]
+
+    def one(stage):
+        part = vif if stage is None else vif[vif["stage"] == stage]
+        rows, classes = [], []
+        for _, r in part.iterrows():
+            key, label = vif_band(float(r["vif"]))
+            rows.append([r["feature"], f"{float(r['vif']):,.2f}",
+                         html.Span(label, className=f"band band-{key}")])
+            classes.append("")
+        title = {"before": "Before — with feels-like alongside temperature",
+                 "after": "After — the final model"}.get(stage, "Variance inflation")
+        return html.Div([html.H3(title, className="sub"),
+                         table(["Predictor", "VIF", "Reading"], rows, right_from=1,
+                               narrow=True)])
+
+    return html.Div(
+        [
+            html.Div([one(s) for s in stages],
+                     className="grid grid-2" if len(stages) > 1 else "stack"),
+            html.P("Rule of thumb: under 5 is fine, 5 to 10 a warning, above 10 "
+                   "serious. Values are shown exactly as the notebook exported them.",
+                   className="card-note", style={"marginTop": "14px", "marginBottom": 0}),
+        ]
+    )
+
+
+def predict_page(m, fit, vif, sources: dict) -> html.Div:
+    blocks = [
+        html.Div(
+            [
+                html.Div([
+                    html.H1("Predict"),
+                    html.P("The notebook's model applied to real Open-Meteo weather. "
+                           "These are point predictions: the coefficients file carries "
+                           "no standard errors, so the app cannot draw a prediction "
+                           "interval and does not pretend to."),
+                ]),
+                chip("Point predictions", "static"),
+            ],
+            className="titlerow",
+        ),
+        html.Div(
+            [
+                html.H1("Predict"),
+                html.P("The notebook's model applied to real Open-Meteo weather. "
+                       "Point predictions only — no intervals."),
+            ],
+            className="hero",
+        ),
+    ]
+
+    if not m.ok:
+        blocks.append(card("The model could not be read", None,
+                           notice("Cannot predict", m.error)))
+        return html.Div(blocks, className="enter")
+
+    if not m.can_forecast:
+        terms = ", ".join(f"“{t}”" for t in m.unforecastable)
+        blocks.append(card(
+            "This model cannot be forecast", None,
+            notice("Missing predictor",
+                   f"The coefficients file names {terms}, which Open-Meteo does not "
+                   f"supply. Rather than drop the term or substitute a zero — either "
+                   f"would produce a confidently wrong number — no prediction is made. "
+                   f"Re-export the model using predictors the weather feed provides.")))
+    else:
+        blocks += [
+            card("First week of January 2026",
+                 "Open-Meteo's historical archive: that week has already happened, "
+                 "but it is outside the data the model was fitted on.",
+                 html.Div(id="jan-2026"), right=html.Span(id="jan-2026-chip")),
+            card("The next five days",
+                 "Open-Meteo's live forecast, fetched when this page loaded.",
+                 html.Div(id="next-five"), right=html.Span(id="next-five-chip")),
+        ]
+
+    blocks.append(card("What the model says", None, coefficient_block(m, sources)))
+
+    if fit is not None:
+        blocks.append(card("How this model was chosen",
+                           "Every candidate the notebook fitted. The ranking is the "
+                           "notebook's own and is reproduced, not recomputed.",
+                           fit_block(fit)))
+    if vif is not None:
+        blocks.append(card("Collinearity check",
+                           "How much each predictor is explained by the others.",
+                           vif_block(vif)))
+
+    return html.Div([blocks[0], blocks[1], html.Div(blocks[2:], className="stack")],
+                    className="enter")

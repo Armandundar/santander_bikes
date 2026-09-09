@@ -13,6 +13,7 @@ from dash import Dash, Input, Output, callback, dcc, html
 import callbacks
 import layout as L
 from data_loader import dataset_span, load_bikes
+from model import load_fit, load_model, load_vif, numeric_sources
 from theme import DEFAULT_VARIANT, VARIANTS, google_fonts_href, write_tokens_css
 
 write_tokens_css()                        # assets/tokens.css, read by Dash below
@@ -41,6 +42,7 @@ app.index_string = f"""<!DOCTYPE html>
 app.layout = html.Div([
     dcc.Location(id="url"),
     dcc.Store(id="variant-store", data=DEFAULT_VARIANT),
+    dcc.Store(id="retry-store", data=0),
     html.Div(id="shell"),
 ])
 
@@ -51,10 +53,12 @@ def route(pathname, variant):
     bike = load_bikes()
     span = dataset_span(bike)
     active = "predict" if (pathname or "").startswith("/app/predict") else "explore"
+    page = (L.predict_page(load_model(), load_fit(), load_vif(), numeric_sources())
+            if active == "predict" else L.explore_page(bike))
     return html.Div(
         [
             L.rail(active, span),
-            html.Div(L.explore_page(bike), className="main"),
+            html.Div(page, className="main"),
             L.switcher(variant or DEFAULT_VARIANT),
         ],
         className="shell",
@@ -62,6 +66,7 @@ def route(pathname, variant):
 
 
 callbacks.register(app)
+callbacks.register_predict(app)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8050)), debug=False)

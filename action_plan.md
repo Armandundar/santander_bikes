@@ -86,14 +86,14 @@ intervals, no confidence bands** — point predictions, labelled as such.
 | `model_fit.csv` | comparison table of every candidate model, final row visibly marked; final model's `adj_r_squared` and `residual_se` restated in plain words ("a typical day's miss: ±N hires") | section hidden entirely |
 | `model_vif.csv` | VIF per predictor; one table if only `after` rows, side-by-side if `before` **and** `after`; bands <5 fine / 5–10 warning / >10 serious, shown as **colour + written label** | section hidden entirely |
 
-VIF values are displayed **exactly as exported**. The notebook computes them
-without a constant column, so `temp` and `humidity` can legitimately carry
-three-figure VIFs that collapse once a collinear twin is dropped. We do not
-recompute with a constant, rescale, cap or log them, and we do not caption them
-as errors. **A linear bar chart cannot show 245 next to 1.1**, so the layout is
-a table (numeric column + severity chip), optionally with a small inline
-proportional rule that is explicitly labelled as clipped — never a bare bar
-axis.
+VIF values are displayed **exactly as exported**. *(Corrected once the
+notebook was finished: it computes VIF **with** `sm.add_constant`, so the final
+model's values are small — 1.05 to 2.60. The three-figure values are real but
+they belong to the `before` stage, the deliberate `temp + feelslike` demo at
+99.22 and 95.96.)* We do not recompute, rescale, cap or log them, and we do not
+caption them as errors. **A linear bar chart cannot show 99 next to 1.05**, so
+the layout is a table: numeric column plus a severity chip carrying both a
+colour and the written word.
 
 ---
 

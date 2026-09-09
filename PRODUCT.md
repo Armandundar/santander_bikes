@@ -89,11 +89,26 @@ substituting a zero and shipping a wrong number.
 - **The model cannot express uncertainty.** The file carries coefficients only —
   no standard errors, no residual scale — so there are **no prediction intervals
   and no confidence bands**. Point predictions only, said plainly.
-- **The forecast is bounded by the weather feed.** Open-Meteo returns exactly
-  `temp, humidity, precip, windspeed, cloudcover`. If the coefficients file
-  names a numeric term outside that set (`tempmax`, `feelslike`, `dew`, …), the
-  Predict tab cannot forecast: it names the offending term and stops. It never
-  drops the term and never substitutes zero.
+- **The forecast is bounded by the weather feed.** If the coefficients file
+  names a numeric term the app cannot fetch a value for (`tempmax`,
+  `feelslike`, `dew`, …), the Predict tab cannot forecast: it names the
+  offending term and stops. It never drops the term and never substitutes zero.
+- **The final model (notebook completed 2026-09-09)** is
+  `temp + humidity + precip + windspeed + solarradiation + C(day_of_week)`,
+  fitted on **1,096 days from 2023 onwards** — average daily hires fell by
+  about 6,000 in 2023, so earlier years carry the wrong level into a forecast.
+  Adj R² 0.685, residual SE 3,491.
+- **Two model inputs need more than `open_meteo.py` supplies**, so `weather.py`
+  fetches them alongside while the helper itself stays byte-identical:
+  `solarradiation` (`shortwave_radiation_sum` × 11.57, named by Part 5) and
+  `windspeed` as `wind_speed_10m_max` rather than the helper's mean. Measured
+  over 184 days of 2024, the mean sits 6.9 km/h under the training data and the
+  max within 0.5 km/h; at −185 hires per km/h the mean would over-predict by
+  roughly 1,280 hires a day.
+- **A known, accepted bias:** the ×11.57 solar conversion does not reproduce the
+  training variable — it runs about +59.5 W/m² high (r = 0.758), worth roughly
+  +875 hires a day. The user decided on 2026-09-09 to **ship as the notebook
+  specifies**, since the notebook owns the model. Do not silently rescale it.
 - **Two optional companion files.** `model_fit.csv` (candidate-model comparison)
   and `model_vif.csv` (collinearity, `before`/`after` stages) are read if
   present and their sections are hidden entirely if absent. Their numbers are

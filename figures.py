@@ -186,3 +186,35 @@ def correlation_heatmap(bike: pd.DataFrame, variant: str, height: int = 460) -> 
     fig.update_xaxes(tickangle=-45, showgrid=False, ticks="")
     fig.update_yaxes(autorange="reversed", showgrid=False, ticks="")
     return fig
+
+
+def forecast_bars(pred: pd.DataFrame, variant: str, height: int = 300) -> go.Figure:
+    """Predicted hires per day. Weekend bars carry the accent and a hatch, the
+    same encoding the day-of-week chart uses, so the two read together."""
+    if pred.empty:
+        return empty_state(variant, "No days to predict.", height)
+    t = tokens(variant)
+    weekend = pred["day_of_week"].isin(["Sat", "Sun"])
+    colours = [t["accent"] if w else t["series"][0] for w in weekend]
+    shapes = ["/" if w else "" for w in weekend]
+    labels = [f"{d}<br>{dt:%-d %b}" for d, dt in zip(pred["day_of_week"], pred["date"])]
+
+    fig = go.Figure(go.Bar(
+        x=labels, y=pred["predicted"],
+        marker=dict(color=colours,
+                    pattern=dict(shape=shapes, size=7, solidity=0.32,
+                                 bgcolor=colours, fgcolor="#FFFFFF")),
+        text=[f"{v:,.0f}" for v in pred["predicted"]],
+        textposition="outside", textfont=dict(size=12, color=t["ink"]),
+        cliponaxis=False,
+        customdata=pred[["temp", "precip", "windspeed"]].round(1),
+        hovertemplate=("%{x}<br>Predicted %{y:,.0f} hires<br>"
+                       "%{customdata[0]}°C · %{customdata[1]} mm · "
+                       "%{customdata[2]} km/h<extra></extra>"),
+    ))
+    fig.update_layout(**_base(variant, height), bargap=0.36)
+    # Headroom so the outside value labels are not clipped by the plot edge.
+    fig.update_yaxes(title_text="Predicted hires", tickformat=",",
+                     range=[0, float(pred["predicted"].max()) * 1.18])
+    fig.update_xaxes(title_text="")
+    return fig
