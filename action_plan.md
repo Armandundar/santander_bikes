@@ -154,7 +154,7 @@ runtime. Never typed into source.
 ## 3. File structure (flat root, as the brief requires)
 
 ```
-london-bikes/
+santander_bikes/            # github.com/Armandundar/santander_bikes
 ├── app.py                    # Dash app, dcc.Location routing, server = app.server
 ├── landing.py                # the / page
 ├── layout.py                 # dashboard shell, both tabs' components
@@ -251,10 +251,10 @@ Each step is run locally and checked by me before it is committed.
 
 **Needed from you:**
 
-1. **`gh` is not installed on this machine**, so I cannot create the GitHub repo
-   yet. Options: install it (`brew install gh`, then `gh auth login`), or you
-   create `london-bikes` as a public repo on github.com and I add the remote and
-   push. Either way I will not push without your go-ahead.
+1. **Nothing has been pushed yet.** This repo already has the remote
+   `github.com/Armandundar/santander_bikes`, so no repo creation is needed and
+   `gh` is not required. Say the word and I push `main`; I will not push
+   without your go-ahead. Confirm the repo is public before the Render deploy.
 2. **Design world A / B / C** — but not now: I will build the switcher first so
    you choose by seeing, per step 5.
 3. **Confirm the two decisions above** (name, and not committing placeholder
