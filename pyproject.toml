@@ -1,0 +1,16 @@
+[project]
+name = "london-bikes"
+version = "0.1.0"
+description = "London Santander Cycles — daily hire demand, explained and forecast"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "dash>=2.17",
+    "plotly>=5.22",
+    "pandas>=2.2",
+    "requests>=2.32",
+    "gunicorn>=22.0",
+]
+
+[tool.uv]
+package = false
