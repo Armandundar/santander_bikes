@@ -4,3 +4,5 @@ __pycache__/
 .DS_Store
 .ipynb_checkpoints/
 design_inspo/
+model_fit.csv
+model_vif.csv
