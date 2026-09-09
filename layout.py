@@ -42,6 +42,7 @@ def rail(active: str, span: dict) -> html.Div:
                 [html.Span(className="ic ic-predict"), "Predict"],
                 href="/app/predict", className=f"rail-link{' is-active' if active == 'predict' else ''}",
             ),
+            html.Img(src="/assets/skyline.svg", className="rail-skyline", alt=""),
             html.Div(
                 [
                     html.Div([html.B(f"{span['rows']:,}"), " daily records"]),

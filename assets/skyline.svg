@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232 138" fill="none" aria-hidden="true">
+  <!-- A cartoon London skyline for the rail's empty space: the London Eye,
+       Elizabeth Tower and 30 St Mary Axe. Drawn only in white at varying
+       opacity, so it reads as tone on whatever colour the rail is and never
+       hardcodes the palette. Windows and the Gherkin's curtain wall are masked
+       OUT of their silhouettes rather than painted on top, so they read as cut
+       lines showing the rail through instead of white-on-white. -->
+  <defs>
+    <mask id="tower">
+      <g fill="#fff">
+        <path d="M116 6l3 5v4h-6v-4l3-5z"/>
+        <path d="M104 46h24l-12-30-12 30z"/>
+        <rect x="101" y="46" width="30" height="7" rx="2"/>
+        <rect x="104" y="53" width="24" height="69" rx="2"/>
+        <rect x="99" y="118" width="34" height="8" rx="2.5"/>
+      </g>
+      <g fill="#000">
+        <rect x="108" y="86" width="4.5" height="9" rx="1.8"/>
+        <rect x="119.5" y="86" width="4.5" height="9" rx="1.8"/>
+        <rect x="108" y="101" width="4.5" height="9" rx="1.8"/>
+        <rect x="119.5" y="101" width="4.5" height="9" rx="1.8"/>
+        <circle cx="116" cy="68" r="9.5"/>
+      </g>
+    </mask>
+
+    <mask id="gherkin">
+      <path d="M190 33c10 10 17 35 17 57 0 18-7 32-17 32s-17-14-17-32c0-22 7-47 17-57z" fill="#fff"/>
+      <circle cx="190" cy="36" r="5" fill="#fff"/>
+      <g stroke="#000" stroke-width="2" stroke-linecap="round">
+        <path d="M168 52l44 26M212 52l-44 26M168 84l44 26M212 84l-44 26"/>
+        <path d="M168 52h44M168 84h44M168 110h44"/>
+      </g>
+    </mask>
+  </defs>
+
+  <g stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- clouds -->
+    <g fill="#fff" opacity=".13">
+      <path d="M20 26c0-4 3-7 7-7 1-4 5-6 9-5 3 .7 5 3 6 6 4 0 7 3 7 6 0 1-1 2-2 2H22c-1 0-2-1-2-2z"/>
+      <path d="M150 18c0-3 2-5 5-5 1-3 4-4 7-3 2 .5 4 2 4 4 3 0 5 2 5 4 0 1-1 1-2 1h-18c-1 0-1 0-1-1z"/>
+    </g>
+
+    <!-- London Eye -->
+    <g opacity=".30" stroke="#fff">
+      <path d="M32 92l-9 30M56 92l9 30" stroke-width="4"/>
+      <circle cx="44" cy="62" r="30" stroke-width="4"/>
+      <g stroke-width="2.5" opacity=".85">
+        <path d="M44 32v60M14 62h60M23 41l42 42M65 41L23 83"/>
+      </g>
+      <circle cx="44" cy="62" r="6" fill="#fff" stroke="none"/>
+    </g>
+    <g fill="#fff" opacity=".42">
+      <circle cx="44" cy="32" r="3.4"/><circle cx="65" cy="41" r="3.4"/>
+      <circle cx="74" cy="62" r="3.4"/><circle cx="65" cy="83" r="3.4"/>
+      <circle cx="44" cy="92" r="3.4"/><circle cx="23" cy="83" r="3.4"/>
+      <circle cx="14" cy="62" r="3.4"/><circle cx="23" cy="41" r="3.4"/>
+    </g>
+
+    <!-- Elizabeth Tower, with its clock face and windows punched out -->
+    <rect x="95" y="0" width="45" height="130" fill="#fff" opacity=".34" mask="url(#tower)"/>
+    <g opacity=".70" stroke="#fff" fill="none">
+      <circle cx="116" cy="68" r="7.5" stroke-width="2.6"/>
+      <path d="M116 68.5V63.5M116 68.5l3.4 2.4" stroke-width="1.7"/>
+    </g>
+
+    <!-- 30 St Mary Axe, with its diamond curtain wall punched out -->
+    <rect x="165" y="25" width="52" height="103" fill="#fff" opacity=".30" mask="url(#gherkin)"/>
+    <rect x="181" y="120" width="18" height="6" rx="2" fill="#fff" opacity=".30"/>
+
+    <!-- ground -->
+    <path d="M0 126h232" stroke="#fff" stroke-width="2.5" opacity=".22"/>
+  </g>
+</svg>

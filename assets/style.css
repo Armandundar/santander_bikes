@@ -79,8 +79,13 @@ p  { margin: 0; }
   color: var(--rail); font-weight: 600;
 }
 .rail-link.is-active:hover { background: var(--card); color: var(--rail); }
+/* The skyline takes the slack, pushing the footer to the bottom. */
+.rail-skyline {
+  margin-top: auto; display: block; width: 100%; height: auto;
+  padding: 0 0 6px; pointer-events: none; user-select: none;
+}
 .rail-foot {
-  margin-top: auto; padding: 16px 20px 0; border-top: 1px solid rgba(255,255,255,.16);
+  padding: 16px 20px 0; border-top: 1px solid rgba(255,255,255,.16);
   color: var(--rail-ink-soft); font-size: 11px; line-height: 1.45;
 }
 .rail-foot b { color: var(--rail-ink); font-weight: 600; }
@@ -187,7 +192,7 @@ p  { margin: 0; }
   .shell { grid-template-columns: minmax(0, 1fr); }
   .rail { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 12px 16px; gap: 4px; }
   .rail-brand { padding: 0 16px 0 0; }
-  .rail-group, .rail-foot { display: none; }
+  .rail-group, .rail-foot, .rail-skyline { display: none; }
   .rail-link { width: auto; margin: 0; }
   .grid-2 { grid-template-columns: minmax(0, 1fr); }
   .main { padding: 18px 16px 34px; }

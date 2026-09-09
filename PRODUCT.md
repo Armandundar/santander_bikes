@@ -136,7 +136,15 @@ substituting a zero and shipping a wrong number.
   - The palette anchors are **Santander red** (`logo.jpeg`, `bank.jpeg`) and
     the **navy of the bike frame** (`bike.jpeg`).
 - Theme: London cycling as **transport infrastructure**, not lifestyle.
-  Restrained and institutional — **no cartoon bikes, no costume**.
+  Restrained and institutional in the working surfaces — charts, tables and
+  controls carry no ornament.
+- **Revised 2026-09-09 at the user's request:** the earlier "no cartoon"
+  commitment is lifted for the rail alone. It carries a cartoon London skyline
+  (the London Eye, Elizabeth Tower, 30 St Mary Axe) as `assets/skyline.svg`,
+  drawn only in white at low opacity so it reads as tone rather than as a
+  second graphic competing with the brand mark. Windows and the Gherkin's
+  curtain wall are masked out of their silhouettes, so no palette colour is
+  named inside the file and the artwork survives a change of rail colour.
 - One Plotly template defined once and shared by every figure: fonts, grid,
   hover, margins, and both a sequential and a categorical palette.
 - Motion is purposeful only: a themed loading state on entry, soft tab
