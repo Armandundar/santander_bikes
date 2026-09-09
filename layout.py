@@ -37,11 +37,11 @@ def rail(active: str, span: dict) -> html.Div:
             html.Div("Dashboard", className="rail-group"),
             dcc.Link(
                 [html.Span(className="ic ic-explore"), "Explore the data"],
-                href="/app", className=f"rail-link{' is-active' if active == 'explore' else ''}",
+                href="/", className=f"rail-link{' is-active' if active == 'explore' else ''}",
             ),
             dcc.Link(
                 [html.Span(className="ic ic-predict"), "Predict"],
-                href="/app/predict", className=f"rail-link{' is-active' if active == 'predict' else ''}",
+                href="/predict", className=f"rail-link{' is-active' if active == 'predict' else ''}",
             ),
             html.Img(src="/assets/skyline.svg", className="rail-skyline", alt=""),
             html.Div(

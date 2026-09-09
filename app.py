@@ -50,7 +50,7 @@ app.layout = html.Div([
 def route(pathname):
     bike = load_bikes()
     span = dataset_span(bike)
-    active = "predict" if (pathname or "").startswith("/app/predict") else "explore"
+    active = "predict" if (pathname or "").rstrip("/").endswith("predict") else "explore"
     page = (L.predict_page(load_model(), load_fit(), load_vif(), numeric_sources())
             if active == "predict" else L.explore_page(bike))
     return html.Div(

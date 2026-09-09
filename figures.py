@@ -54,7 +54,11 @@ def empty_state(message: str, height: int = 340) -> go.Figure:
 
 def scatter_weather(bike: pd.DataFrame, xcol: str, colour_by: str,
                     height: int = 380) -> go.Figure:
-    """Daily hires against one weather variable, coloured by weekend or season."""
+    """Daily hires against one weather variable, coloured by weekend or season.
+
+    Plain SVG scatter, not Scattergl: the WebGL renderer draws nothing at all on
+    a machine without it, and 4,383 markers do not need the GPU.
+    """
     if bike.empty:
         return empty_state("No days match these filters.<br>"
                                     "Widen the date range or add a season.", height)
@@ -74,7 +78,7 @@ def scatter_weather(bike: pd.DataFrame, xcol: str, colour_by: str,
     for name, part, colour, symbol in groups:
         if part.empty:
             continue
-        fig.add_trace(go.Scattergl(
+        fig.add_trace(go.Scatter(
             x=part[xcol], y=part["bikes_hired"], mode="markers", name=name,
             marker=dict(color=colour, size=5.5, symbol=symbol,
                         opacity=0.55, line=dict(width=0)),
@@ -123,7 +127,7 @@ def daily_series(bike: pd.DataFrame, height: int = 260) -> go.Figure:
         return empty_state("No days match these filters.", height)
     t = TOKENS
     d = bike.sort_values("date")
-    fig = go.Figure(go.Scattergl(
+    fig = go.Figure(go.Scatter(
         x=d["date"], y=d["bikes_hired"], mode="lines",
         line=dict(color=SERIES[0], width=1),
         hovertemplate="%{x|%a %d %b %Y}<br>%{y:,.0f} hires<extra></extra>",

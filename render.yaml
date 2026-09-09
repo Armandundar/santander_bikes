@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: cycle-demand
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install uv && uv sync
+    # Render injects $PORT and routes traffic to it; gunicorn's own default is
+    # 8000, so the bind is not optional here.
+    startCommand: uv run gunicorn app:server --bind 0.0.0.0:$PORT --timeout 120
+    autoDeployTrigger: commit
