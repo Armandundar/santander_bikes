@@ -7,7 +7,6 @@ from dash import dcc, html
 
 from data_loader import DAY_ORDER, WEATHER_CHOICES, dataset_span
 from model import BASELINE_DAY as BASELINE, vif_band
-from theme import VARIANTS
 
 SEASONS = ["Winter", "Spring", "Summer", "Autumn"]
 
@@ -55,25 +54,6 @@ def rail(active: str, span: dict) -> html.Div:
             ),
         ],
         className="rail",
-    )
-
-
-def switcher(variant: str) -> html.Div:
-    """Development-only: pick a visual world by looking at it."""
-    return html.Div(
-        [
-            html.Span("Design", className="switcher-label"),
-            html.Div(
-                [
-                    html.Button(v["label"], id={"role": "variant", "name": key},
-                                n_clicks=0, title=v["blurb"],
-                                className="is-on" if key == variant else "")
-                    for key, v in VARIANTS.items()
-                ],
-                className="seg",
-            ),
-        ],
-        className="switcher",
     )
 
 
@@ -175,17 +155,6 @@ def explore_page(bike: pd.DataFrame) -> html.Div:
                 [
                     html.Div([
                         html.H1("Explore the data"),
-                        html.P(f"{span['rows']:,} days of hires and weather, "
-                               f"{span['first']:%B %Y} to {span['last']:%B %Y}."),
-                    ]),
-                    chip("Static dataset", "static"),
-                ],
-                className="hero",
-            ),
-            html.Div(
-                [
-                    html.Div([
-                        html.H1("Explore the data"),
                         html.P(f"Every daily hire on the scheme from "
                                f"{span['first']:%-d %B %Y} to {span['last']:%-d %B %Y}, "
                                f"against the weather that day. Filters apply to "
@@ -193,7 +162,7 @@ def explore_page(bike: pd.DataFrame) -> html.Div:
                     ]),
                     chip("Static dataset", "static"),
                 ],
-                className="titlerow",
+                className="hero",
             ),
             html.Div(id="status-strip", className="grid grid-4",
                      style={"marginBottom": "14px"}),
@@ -311,10 +280,18 @@ def coefficient_block(m, sources: dict) -> html.Div:
 def fit_block(fit) -> html.Div:
     """The candidate comparison, exactly as the notebook ranked it."""
     final = fit[fit["is_final"].astype(str).str.lower() == "true"]
-    headers = ["Model", "Predictors", "Days fitted", "Adj R²", "Residual SE"]
-    has_rmse = "forecast_rmse_2025" in fit.columns
-    if has_rmse:
-        headers.append("2025 forecast RMSE")
+
+    def num(value, spec: str) -> str:
+        """A blank cell reads as an em dash. Not every model has every measure:
+        a boosted tree has no adjusted R² or residual SE to report."""
+        if pd.isna(value) or str(value).strip() == "":
+            return "—"
+        return format(float(value), spec)
+
+    optional = [c for c in ("cv_rmse", "forecast_rmse_2025") if c in fit.columns]
+    titles = {"cv_rmse": "5-fold CV RMSE", "forecast_rmse_2025": "2025 forecast RMSE"}
+    headers = (["Model", "Predictors", "Days fitted", "Adj R²", "Residual SE"]
+               + [titles[c] for c in optional])
 
     rows, classes = [], []
     for _, r in fit.iterrows():
@@ -322,9 +299,8 @@ def fit_block(fit) -> html.Div:
         name = [r["model"], html.Span("final", className="pill")] if is_final else r["model"]
         formula = str(r.get("formula", "")).replace("bikes_hired ~ ", "")
         row = [name, html.Span(formula, className="wrap-cell"), f"{int(r['n_obs']):,}",
-               f"{float(r['adj_r_squared']):.3f}", f"{float(r['residual_se']):,.0f}"]
-        if has_rmse:
-            row.append(f"{float(r['forecast_rmse_2025']):,.0f}")
+               num(r["adj_r_squared"], ".3f"), num(r["residual_se"], ",.0f")]
+        row += [num(r[c], ",.0f") for c in optional]
         rows.append(row)
         classes.append("is-final" if is_final else "")
 
@@ -339,7 +315,17 @@ def fit_block(fit) -> html.Div:
              f". It was fitted on {int(f['n_obs']):,} days."],
             className="card-note", style={"marginTop": "14px", "marginBottom": 0},
         )
-    return html.Div([table(headers, rows, right_from=2, row_classes=classes), words])
+    extra = html.Span()
+    if fit["model"].astype(str).str.contains("XGBoost", case=False).any():
+        extra = html.P(
+            "The last row is a different kind of model, scored on the same two "
+            "tests. It forecasts 2025 about 4% better and was still not chosen: "
+            "it has no coefficients to read, no residual checks, and no "
+            "two-column file a dashboard can apply. That was the notebook's "
+            "call, recorded here rather than re-argued.",
+            className="card-note", style={"marginTop": "10px", "marginBottom": 0})
+    return html.Div([table(headers, rows, right_from=2, row_classes=classes),
+                     words, extra])
 
 
 def vif_block(vif) -> html.Div:
@@ -386,14 +372,6 @@ def predict_page(m, fit, vif, sources: dict) -> html.Div:
                 ]),
                 chip("Point predictions", "static"),
             ],
-            className="titlerow",
-        ),
-        html.Div(
-            [
-                html.H1("Predict"),
-                html.P("The notebook's model applied to real Open-Meteo weather. "
-                       "Point predictions only — no intervals."),
-            ],
             className="hero",
         ),
     ]
@@ -401,7 +379,8 @@ def predict_page(m, fit, vif, sources: dict) -> html.Div:
     if not m.ok:
         blocks.append(card("The model could not be read", None,
                            notice("Cannot predict", m.error)))
-        return html.Div(blocks, className="enter")
+        return html.Div([blocks[0], html.Div(blocks[1:], className="stack")],
+                        className="enter")
 
     if not m.can_forecast:
         terms = ", ".join(f"“{t}”" for t in m.unforecastable)
@@ -435,5 +414,5 @@ def predict_page(m, fit, vif, sources: dict) -> html.Div:
                            "How much each predictor is explained by the others.",
                            vif_block(vif)))
 
-    return html.Div([blocks[0], blocks[1], html.Div(blocks[2:], className="stack")],
+    return html.Div([blocks[0], html.Div(blocks[1:], className="stack")],
                     className="enter")

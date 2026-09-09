@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import pandas as pd
-from dash import ALL, Input, Output, State, callback, ctx, html
+from dash import ALL, Input, Output, State, callback, html
 
 import figures as F
 from data_loader import load_bikes
 from layout import tile
-from theme import DEFAULT_VARIANT, VARIANTS
 
 
 def filtered(start, end, seasons, days) -> pd.DataFrame:
@@ -27,35 +26,6 @@ def filtered(start, end, seasons, days) -> pd.DataFrame:
 
 def register(app):
     @callback(
-        Output("variant-store", "data"),
-        Input({"role": "variant", "name": ALL}, "n_clicks"),
-        State("variant-store", "data"),
-        prevent_initial_call=True,
-    )
-    def choose_variant(_clicks, current):
-        if not ctx.triggered_id:
-            return current or DEFAULT_VARIANT
-        return ctx.triggered_id.get("name", current or DEFAULT_VARIANT)
-
-    # Repaint by swapping one attribute on <body>: no re-render, no flash.
-    app.clientside_callback(
-        "function (variant) {"
-        "  document.body.dataset.variant = variant || 'control';"
-        "  return window.dash_clientside.no_update;"
-        "}",
-        Output("variant-store", "id"),
-        Input("variant-store", "data"),
-    )
-
-    @callback(
-        Output({"role": "variant", "name": ALL}, "className"),
-        Input("variant-store", "data"),
-    )
-    def mark_active(variant):
-        variant = variant or DEFAULT_VARIANT
-        return ["is-on" if k == variant else "" for k in VARIANTS]
-
-    @callback(
         Output("status-strip", "children"),
         Output("fig-scatter", "figure"),
         Output("fig-dow", "figure"),
@@ -68,18 +38,16 @@ def register(app):
         Input("date-range", "end_date"),
         Input("season", "value"),
         Input("days", "value"),
-        Input("variant-store", "data"),
     )
-    def redraw(weather_var, colour_by, start, end, seasons, days, variant):
-        variant = variant or DEFAULT_VARIANT
+    def redraw(weather_var, colour_by, start, end, seasons, days):
         bike = filtered(start, end, seasons, days)
         return (
             _strip(bike),
-            F.scatter_weather(bike, weather_var, colour_by, variant),
-            F.bar_day_of_week(bike, variant),
-            F.month_profile(bike, variant),
-            F.daily_series(bike, variant),
-            F.correlation_heatmap(bike, variant),
+            F.scatter_weather(bike, weather_var, colour_by),
+            F.bar_day_of_week(bike),
+            F.month_profile(bike),
+            F.daily_series(bike),
+            F.correlation_heatmap(bike),
         )
 
 
@@ -122,11 +90,9 @@ def register_predict(app):
         Output("jan-2026-chip", "children"),
         Output("next-five", "children"),
         Output("next-five-chip", "children"),
-        Input("variant-store", "data"),
         Input("retry-store", "data"),
     )
-    def fill(variant, retry):
-        variant = variant or DEFAULT_VARIANT
+    def fill(retry):
         model = load_model()
         sources = numeric_sources()
         out = []
@@ -146,7 +112,7 @@ def register_predict(app):
             pred["predicted"] = model.predict(pred)
             out += [
                 html.Div([
-                    dcc.Graph(figure=F.forecast_bars(pred, variant),
+                    dcc.Graph(figure=F.forecast_bars(pred),
                               config={"displayModeBar": False, "responsive": True},
                               style={"height": "300px"}),
                     L.weather_table(pred, sources),

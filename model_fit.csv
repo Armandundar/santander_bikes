@@ -1,6 +1,7 @@
-model,formula,adj_r_squared,residual_se,n_obs,forecast_rmse_2025,is_final
-temp only,bikes_hired ~ temp,0.359,7353,4383,7313,False
-temp + day of week,bikes_hired ~ temp + C(day_of_week),0.411,7049,4383,6755,False
-"4 weather + day, all years",bikes_hired ~ temp + humidity + precip + windspeed + C(day_of_week),0.512,6420,4383,7428,False
-"4 weather + day, 2023 onwards",bikes_hired ~ temp + humidity + precip + windspeed + C(day_of_week),0.677,3536,1096,3945,False
-"4 weather + solar + day, 2023 on",bikes_hired ~ temp + humidity + precip + windspeed + solarradiation + C(day_of_week),0.685,3491,1096,3911,True
+model,formula,adj_r_squared,residual_se,n_obs,cv_rmse,forecast_rmse_2025,is_final
+temp only,bikes_hired ~ temp,0.359,7353,4383,,7313,False
+temp + day of week,bikes_hired ~ temp + C(day_of_week),0.411,7049,4383,,6755,False
+"4 weather + day, all years",bikes_hired ~ temp + humidity + precip + windspeed + C(day_of_week),0.512,6420,4383,,7428,False
+"4 weather + day, 2023 onwards",bikes_hired ~ temp + humidity + precip + windspeed + C(day_of_week),0.677,3536,1096,,3945,False
+"4 weather + solar + day, 2023 on",bikes_hired ~ temp + humidity + precip + windspeed + solarradiation + C(day_of_week),0.685,3491,1096,3521,3911,True
+"XGBoost, same predictors","gradient-boosted trees, not a linear model",,,1096,3325,3736,False

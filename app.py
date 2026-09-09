@@ -14,7 +14,7 @@ import callbacks
 import layout as L
 from data_loader import dataset_span, load_bikes
 from model import load_fit, load_model, load_vif, numeric_sources
-from theme import DEFAULT_VARIANT, VARIANTS, google_fonts_href, write_tokens_css
+from theme import google_fonts_href, write_tokens_css
 
 write_tokens_css()                        # assets/tokens.css, read by Dash below
 
@@ -33,7 +33,7 @@ app.index_string = f"""<!DOCTYPE html>
     <link rel="stylesheet" href="{google_fonts_href()}">
     {{%css%}}
   </head>
-  <body data-variant="{DEFAULT_VARIANT}">
+  <body>
     {{%app_entry%}}
     <footer>{{%config%}}{{%scripts%}}{{%renderer%}}</footer>
   </body>
@@ -41,15 +41,13 @@ app.index_string = f"""<!DOCTYPE html>
 
 app.layout = html.Div([
     dcc.Location(id="url"),
-    dcc.Store(id="variant-store", data=DEFAULT_VARIANT),
     dcc.Store(id="retry-store", data=0),
     html.Div(id="shell"),
 ])
 
 
-@callback(Output("shell", "children"), Input("url", "pathname"),
-          Input("variant-store", "data"))
-def route(pathname, variant):
+@callback(Output("shell", "children"), Input("url", "pathname"))
+def route(pathname):
     bike = load_bikes()
     span = dataset_span(bike)
     active = "predict" if (pathname or "").startswith("/app/predict") else "explore"
@@ -59,7 +57,6 @@ def route(pathname, variant):
         [
             L.rail(active, span),
             html.Div(page, className="main"),
-            L.switcher(variant or DEFAULT_VARIANT),
         ],
         className="shell",
     )
