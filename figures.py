@@ -20,6 +20,12 @@ TEMP_BLOCK = ["temp", "feelslike", "tempmax", "tempmin", "dew"]
 HEATMAP_ORDER = ["bikes_hired", *TEMP_BLOCK,
                  "humidity", "cloudcover", "precip", "windspeed", "sealevelpressure"]
 
+#: How each predictor's unit is said out loud on an axis tick.
+UNIT_LABELS = {
+    "temp": "°C", "humidity": "%", "precip": "mm",
+    "windspeed": "km/h", "cloudcover": "% cloud", "solarradiation": "W/m²",
+}
+
 PRETTY = {
     "bikes_hired": "Hires", "temp": "Temp", "feelslike": "Feels like",
     "tempmax": "Temp max", "tempmin": "Temp min", "dew": "Dew point",
@@ -218,3 +224,153 @@ def forecast_bars(pred: pd.DataFrame, height: int = 300) -> go.Figure:
                      range=[0, float(pred["predicted"].max()) * 1.18])
     fig.update_xaxes(title_text="")
     return fig
+
+
+def coefficient_effects(effects: list[tuple[str, float, str]],
+                        height: int = 230) -> go.Figure:
+    """Each numeric coefficient as a diverging bar from zero.
+
+    The axis is 'hires per one unit', and every tick names its own unit,
+    because a degree, a millimetre and a W/m² are not comparable quantities.
+    Sunshine looking small here is the honest reading: one extra W/m² really
+    does very little, which is why it moved the fit by under one percent.
+    """
+    if not effects:
+        return empty_state("No numeric predictors in the coefficients file.", height)
+    t = TOKENS
+    rows = sorted(effects, key=lambda e: e[1])
+    labels = [f"{term} ({UNIT_LABELS.get(term, 'unit')})" for term, _, _ in rows]
+    values = [coef for _, coef, _ in rows]
+    colours = [SERIES[0] if v >= 0 else t["accent"] for v in values]
+
+    fig = go.Figure(go.Bar(
+        x=values, y=labels, orientation="h",
+        marker=dict(color=colours),
+        text=[f"{v:+,.0f}" for v in values],
+        textposition="outside", cliponaxis=False,
+        textfont=dict(size=12.5, color=t["ink"]),
+        hovertemplate="%{y}<br>%{x:+,.1f} hires<extra></extra>",
+    ))
+    span = max(abs(min(values)), abs(max(values))) * 1.45
+    fig.update_layout(**_base(height), bargap=0.4,
+                      margin=dict(l=132, r=26, t=14, b=46))
+    fig.update_xaxes(title_text="Hires per one unit increase", range=[-span, span],
+                     zeroline=True, zerolinecolor=t["ink_soft"], zerolinewidth=1.5)
+    fig.update_yaxes(title_text="", ticklen=0)
+    return fig
+
+
+def weekday_effects(days: dict[str, float], baseline: str = "Mon",
+                    height: int = 230) -> go.Figure:
+    """The weekly shape as bars either side of the Monday baseline."""
+    t = TOKENS
+    order = [d for d in DAY_ORDER if d in days][::-1]     # Monday at the top
+    values = [days[d] for d in order]
+    colours = [t["ink_soft"] if d == baseline
+               else (SERIES[0] if days[d] >= 0 else t["accent"]) for d in order]
+    labels = list(order)
+
+    fig = go.Figure(go.Bar(
+        x=values, y=labels, orientation="h", marker=dict(color=colours),
+        text=[("0 · baseline" if d == baseline else f"{v:+,.0f}")
+              for d, v in zip(order, values)],
+        textposition="outside", cliponaxis=False,
+        textfont=dict(size=12.5, color=t["ink"]),
+        hovertemplate="%{y}<br>%{x:+,.0f} hires vs Monday<extra></extra>",
+    ))
+    span = (max(abs(v) for v in values) or 1) * 1.55
+    fig.update_layout(**_base(height), bargap=0.34,
+                      margin=dict(l=54, r=26, t=14, b=46))
+    fig.update_xaxes(title_text="Hires relative to Monday", range=[-span, span],
+                     zeroline=True, zerolinecolor=t["ink_soft"], zerolinewidth=1.5)
+    fig.update_yaxes(title_text="", ticklen=0)
+    return fig
+
+
+def vif_chart(vif: pd.DataFrame, height: int = 300) -> go.Figure:
+    """VIF on a logarithmic axis, with the notebook's thresholds as bands.
+
+    The axis is logarithmic, not the values: every dot sits at its exported
+    number and every number is printed beside it. That is the only way 99.22
+    and 1.05 can share one chart without one of them becoming invisible.
+    When both stages are present each predictor is a dumbbell, so the drop
+    from dropping a collinear twin is the thing you see first.
+    """
+    if vif is None or vif.empty:
+        return empty_state("No VIF values exported.", height)
+    t = TOKENS
+    has_stage = "stage" in vif.columns
+    before = (vif[vif["stage"] == "before"].set_index("feature")["vif"].to_dict()
+              if has_stage else {})
+    after = (vif[vif["stage"] == "after"].set_index("feature")["vif"].to_dict()
+             if has_stage else vif.set_index("feature")["vif"].to_dict())
+
+    order = sorted(set(before) | set(after),
+                   key=lambda f: before.get(f, after.get(f, 0)))
+    # A predictor with a "before" and no "after" is one the notebook dropped;
+    # say so on the axis rather than leaving a lone dot to be puzzled over.
+    name_of = {f: (f"{f} — dropped" if f in before and f not in after else f)
+               for f in order}
+    order = [name_of[f] for f in order]
+    before = {name_of[f]: v for f, v in before.items()}
+    after = {name_of[f]: v for f, v in after.items()}
+    fig = go.Figure()
+
+    # Threshold bands: under 5 fine, 5-10 warning, above 10 serious.
+    for x0, x1, colour in ((0.5, 5, "#F0FDF4"), (5, 10, "#FEFCE8"), (10, 400, "#FEF2F2")):
+        fig.add_vrect(x0=x0, x1=x1, fillcolor=colour, layer="below", line_width=0)
+    for x, label in ((5, "5"), (10, "10")):
+        fig.add_vline(x=x, line=dict(color=t["rule"], width=1, dash="dot"))
+        fig.add_annotation(x=_log(x), y=1.02, yref="paper", yanchor="bottom",
+                           text=label, showarrow=False,
+                           font=dict(size=11, color=t["ink_soft"]))
+
+    # The connector, drawn first so the dots sit on top of it.
+    for f in order:
+        if f in before and f in after:
+            fig.add_shape(type="line", x0=_log(before[f]), x1=_log(after[f]),
+                          y0=f, y1=f, line=dict(color=t["ink_soft"], width=1.6))
+
+    # Where the two stages nearly coincide the labels would sit on top of each
+    # other, so one rides above the dot and the other below.
+    if before:
+        # Where a predictor barely moved, two numbers on top of each other read
+        # as a smudge. Label the "after" dot only; the exact pair is in the
+        # table below and in the hover.
+        quiet = {f for f in order if f in before and f in after
+                 and abs(before[f] - after[f]) / max(before[f], 1e-9) < 0.18}
+        fig.add_trace(_vif_dots(before, order, "Before", t["accent"], "circle", t,
+                                "top center", hide_text=quiet))
+    fig.add_trace(_vif_dots(after, order, "After" if before else "Variance inflation",
+                            SERIES[0], "diamond", t,
+                            "bottom center" if before else "top center"))
+
+    fig.update_layout(**_base(height), showlegend=bool(before),
+                      margin=dict(l=112, r=30, t=34, b=52))
+    # Plotly's log minor ticks read as a row of stray digits; name them instead.
+    fig.update_xaxes(type="log", title_text="Variance inflation factor (log scale)",
+                     range=[_log(0.55), _log(320)], showgrid=False,
+                     tickmode="array", tickvals=[1, 2, 5, 10, 20, 50, 100, 200],
+                     ticktext=["1", "2", "5", "10", "20", "50", "100", "200"],
+                     minor=dict(ticks=""))
+    fig.update_yaxes(title_text="", categoryorder="array", categoryarray=order)
+    return fig
+
+
+def _vif_dots(values: dict, order: list, name: str, colour: str, symbol: str,
+              t: dict, textposition: str, hide_text: set | None = None) -> go.Scatter:
+    hide_text = hide_text or set()
+    feats = [f for f in order if f in values]
+    return go.Scatter(
+        x=[values[f] for f in feats], y=feats, name=name, mode="markers+text",
+        marker=dict(color=colour, size=13, symbol=symbol,
+                    line=dict(color="#FFFFFF", width=1.5)),
+        text=["" if f in hide_text else f"{values[f]:,.2f}" for f in feats],
+        textposition=textposition, textfont=dict(size=11, color=t["ink"]),
+        hovertemplate="%{y} · " + name + "<br>VIF %{x:,.2f}<extra></extra>",
+    )
+
+
+def _log(v: float) -> float:
+    import math
+    return math.log10(v)

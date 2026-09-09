@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 from dash import dcc, html
 
+import figures as F
 from data_loader import DAY_ORDER, WEATHER_CHOICES, dataset_span
 from model import BASELINE_DAY as BASELINE, vif_band
 
@@ -260,21 +261,51 @@ def weather_table(pred: pd.DataFrame, sources: dict) -> html.Div:
     return table(headers, rows, right_from=2, row_classes=classes)
 
 
+def details(summary: str, body) -> html.Details:
+    """Exact figures kept one click away, so the charts can lead."""
+    return html.Details([html.Summary(summary), body], className="details")
+
+
+def figure(fig, height: int) -> dcc.Graph:
+    return dcc.Graph(figure=fig, config={"displayModeBar": False, "responsive": True},
+                     style={"height": f"{height}px"})
+
+
 def coefficient_block(m, sources: dict) -> html.Div:
-    """The model in words, then the weekday effects, always against Monday."""
-    day_rows = [
-        [d, "baseline" if d == BASELINE else f"{m.days[d]:+,.0f}"]
-        for d in DAY_ORDER
-    ]
+    """The model as two diverging bar charts, with the sentences beneath."""
+    day_rows = [[d, "baseline" if d == BASELINE else f"{m.days[d]:+,.0f}"]
+                for d in DAY_ORDER]
+    coef_rows = [[term, f"{coef:+,.2f}", sources.get(term, "—")]
+                 for term, coef, _ in m.sentences()]
     return html.Div(
         [
+            html.Div(
+                [
+                    html.Div([
+                        html.H3("Weather, per unit", className="sub"),
+                        figure(F.coefficient_effects(m.sentences()), 230),
+                    ]),
+                    html.Div([
+                        html.H3("The week, against Monday", className="sub"),
+                        figure(F.weekday_effects(m.days, BASELINE), 230),
+                    ]),
+                ],
+                className="grid grid-2",
+            ),
             html.Ul([html.Li(s) for _, _, s in m.sentences()], className="plain-list"),
-            html.P("Each effect holds the others fixed. Weekday effects are read "
-                   "against Monday, which is the baseline at zero.",
-                   className="card-note"),
-            table(["Day", "Effect vs Monday"], day_rows, narrow=True,
-                  row_classes=["is-baseline" if d == BASELINE else "" for d in DAY_ORDER]),
-        ]
+            html.P("Each effect holds the others fixed. The units differ, so the "
+                   "left chart compares directions and not sizes: a degree and a "
+                   "W/m² are not the same quantity.",
+                   className="card-note", style={"marginBottom": "6px"}),
+            details("Show the exact coefficients",
+                    html.Div([
+                        table(["Term", "Coefficient", "Source"], coef_rows, right_from=1),
+                        table(["Day", "Effect vs Monday"], day_rows, narrow=True,
+                              row_classes=["is-baseline" if d == BASELINE else ""
+                                           for d in DAY_ORDER]),
+                    ], className="stack")),
+        ],
+        className="stack",
     )
 
 
@@ -330,19 +361,20 @@ def fit_block(fit) -> html.Div:
 
 
 def vif_block(vif) -> html.Div:
-    """VIF exactly as exported. Severity is a colour and a written word."""
+    """VIF as a chart that survives 99 sitting next to 1.05, exact values below.
+
+    Values are shown as the notebook exported them: the axis is logarithmic,
+    the numbers are not.
+    """
     stages = [s for s in ("before", "after") if s in set(vif.get("stage", []))]
-    if not stages:
-        stages = [None]
 
     def one(stage):
         part = vif if stage is None else vif[vif["stage"] == stage]
-        rows, classes = [], []
+        rows = []
         for _, r in part.iterrows():
             key, label = vif_band(float(r["vif"]))
             rows.append([r["feature"], f"{float(r['vif']):,.2f}",
                          html.Span(label, className=f"band band-{key}")])
-            classes.append("")
         title = {"before": "Before — with feels-like alongside temperature",
                  "after": "After — the final model"}.get(stage, "Variance inflation")
         return html.Div([html.H3(title, className="sub"),
@@ -351,12 +383,20 @@ def vif_block(vif) -> html.Div:
 
     return html.Div(
         [
-            html.Div([one(s) for s in stages],
-                     className="grid grid-2" if len(stages) > 1 else "stack"),
-            html.P("Rule of thumb: under 5 is fine, 5 to 10 a warning, above 10 "
-                   "serious. Values are shown exactly as the notebook exported them.",
-                   className="card-note", style={"marginTop": "14px", "marginBottom": 0}),
-        ]
+            figure(F.vif_chart(vif), 300),
+            html.Div(
+                [
+                    html.Span([html.Span(className="band-key band-fine"), "Under 5, fine"]),
+                    html.Span([html.Span(className="band-key band-warning"), "5 to 10, a warning"]),
+                    html.Span([html.Span(className="band-key band-serious"), "Above 10, serious"]),
+                ],
+                className="legend-row",
+            ),
+            details("Show the exact values",
+                    html.Div([one(s) for s in (stages or [None])],
+                             className="grid grid-2" if len(stages) > 1 else "stack")),
+        ],
+        className="stack",
     )
 
 
@@ -412,7 +452,9 @@ def predict_page(m, fit, vif, sources: dict) -> html.Div:
                            fit_block(fit)))
     if vif is not None:
         blocks.append(card("Collinearity check",
-                           "How much each predictor is explained by the others.",
+                           "How much each predictor is explained by the others. "
+                           "Dropping feels-like is what pulls temperature back "
+                           "into the safe band.",
                            vif_block(vif)))
 
     return html.Div([blocks[0], html.Div(blocks[1:], className="stack")],
