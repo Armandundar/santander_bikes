@@ -1,5 +1,7 @@
 # Product
 
+<!-- impeccable:product-schema 1 -->
+
 ## Platform
 
 web
@@ -13,11 +15,13 @@ and they need answers they can repeat in a meeting without a caveat that
 collapses. They read charts to make a call about bike redistribution,
 maintenance windows and docking-station staffing.
 
-The **landing page at `/` has a second visitor**: a general, data-curious
-arrival, tuned recruiter-weighted — reviewers and peers assessing the maker's
-work. Success there is two-part: the visitor understands in seconds what
-questions the tool answers and enters the dashboard, *and* a reviewer reads it
-as a real analytical product rather than a coursework submission.
+The **landing page at `/` has a second visitor**, and this one is concrete: the
+**course marker**, plus any general data-curious arrival. Confirmed 2026-09-09 —
+this is a school assignment and the marker is the real evaluating audience.
+Success there is two-part: the visitor understands in seconds what questions the
+tool answers and enters the dashboard, *and* it reads as a real analytical
+product rather than a coursework submission. That second half is why the landing
+page exists at all; the assignment does not require it.
 
 ## Product Purpose
 
@@ -100,13 +104,24 @@ substituting a zero and shipping a wrong number.
 
 ## Brand Commitments
 
-- Name in-app: **Cycle Demand** (working title) for the London Santander Cycles
-  scheme.
+- Name in-app: **Cycle Demand** for the London Santander Cycles scheme.
+- **Santander branding is approved for use** (confirmed 2026-09-09, on the
+  grounds that this is a school project). The mark and wordmark identify the
+  *scheme being analysed*. Binding condition attached at the same time: the app
+  carries an unambiguous **"independent student project — not affiliated with
+  Santander or Transport for London"** line, so it identifies its subject
+  without presenting itself as an official product.
+- **Binding visual references (user-supplied 2026-09-09, in `design_inspo/`):**
+  - `dashboardstyle.jpeg` is the **primary layout reference** — light
+    card-based dashboard, persistent left sidebar nav, rounded cards, a KPI/
+    summary row, a wide hero band, pill toggles.
+  - `colors.jpeg` governs **colour handling** — a red rail against white and
+    light-grey cards, with charts drawn in red / black / grey rather than a
+    rainbow.
+  - The palette anchors are **Santander red** (`logo.jpeg`, `bank.jpeg`) and
+    the **navy of the bike frame** (`bike.jpeg`).
 - Theme: London cycling as **transport infrastructure**, not lifestyle.
-  Santander Cycles red as the anchor accent, TfL roundel geometry, a
-  Johnston-flavoured humanist sans, tarmac/asphalt neutrals, wayfinding and
-  transport-map cues. Restrained and institutional — **no cartoon bikes, no
-  costume**.
+  Restrained and institutional — **no cartoon bikes, no costume**.
 - One Plotly template defined once and shared by every figure: fonts, grid,
   hover, margins, and both a sequential and a categorical palette.
 - Motion is purposeful only: a themed loading state on entry, soft tab
@@ -127,6 +142,11 @@ substituting a zero and shipping a wrong number.
   Part 1 are complete; **Parts 2–5 are still empty scaffolds**, so no real
   coefficients, fit table or VIF table exist yet.
 - Weather helper: `open_meteo.py`, copied into the repo unchanged.
+- **Design references (user-supplied, `design_inspo/`, gitignored — they are
+  third-party screenshots and brand photos and do not belong in a public repo):**
+  `dashboardstyle.jpeg`, `colors.jpeg`, `bank.jpeg`, `bike.jpeg`, `logo.jpeg`.
+  `logo.jpeg` is a low-resolution screenshot with a search-tool watermark, so it
+  is unusable as a shipped asset; the mark has to be redrawn as vector.
 - Calibration reference (quality bar, not a style to copy):
   `~/Documents/GitHub/avocados/avocado_dashboard`.
 - No testimonials, customers, benchmarks, usage numbers or accuracy claims
