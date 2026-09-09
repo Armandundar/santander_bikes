@@ -378,3 +378,31 @@ def _vif_dots(values: dict, order: list, name: str, colour: str, symbol: str,
 def _log(v: float) -> float:
     import math
     return math.log10(v)
+
+
+def head_to_head(models: list[str], cv: list[float], fc: list[float],
+                 height: int = 250) -> go.Figure:
+    """The two models the notebook scored on the same tests, on one axis.
+
+    Both bars are a root-mean-square error in hires, so they are directly
+    comparable — unlike adjusted R-squared, which a boosted tree does not have.
+    Lower is better, and the gap is the whole argument.
+    """
+    t = TOKENS
+    fig = go.Figure()
+    for i, (name, colour) in enumerate(zip(models, (SERIES[0], t["accent"]))):
+        fig.add_trace(go.Bar(
+            name=name, x=["5-fold cross-validation", "2025 forecast"],
+            y=[cv[i], fc[i]], marker_color=colour,
+            text=[f"{cv[i]:,.0f}", f"{fc[i]:,.0f}"],
+            textposition="outside", cliponaxis=False,
+            textfont=dict(size=12.5, color=t["ink"]),
+            hovertemplate="%{fullData.name}<br>%{x}<br>RMSE %{y:,.0f} hires<extra></extra>",
+        ))
+    top = max(cv + fc) * 1.22
+    fig.update_layout(**_base(height), barmode="group", bargap=0.42,
+                      bargroupgap=0.1, margin=dict(l=72, r=24, t=16, b=44))
+    fig.update_yaxes(title_text="RMSE in hires — lower is better",
+                     range=[0, top], tickformat=",")
+    fig.update_xaxes(title_text="")
+    return fig

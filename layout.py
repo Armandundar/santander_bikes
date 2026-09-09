@@ -320,20 +320,20 @@ def fit_block(fit) -> html.Div:
             return "—"
         return format(float(value), spec)
 
-    optional = [c for c in ("cv_rmse", "forecast_rmse_2025") if c in fit.columns]
-    titles = {"cv_rmse": "5-fold CV RMSE", "forecast_rmse_2025": "2025 forecast RMSE"}
-    headers = (["Model", "Predictors", "Days fitted", "Adj R²", "Residual SE"]
-               + [titles[c] for c in optional])
-
+    # The cross-validated columns belong to the two models that were actually
+    # cross-validated; putting them in the main table would be four blank cells
+    # pretending to be a comparison.
+    headers = ["Model", "Predictors", "Days fitted", "Adj R²", "Residual SE",
+               "2025 forecast RMSE"]
     rows, classes = [], []
     for _, r in fit.iterrows():
         is_final = str(r["is_final"]).lower() == "true"
         name = [r["model"], html.Span("final", className="pill")] if is_final else r["model"]
         formula = str(r.get("formula", "")).replace("bikes_hired ~ ", "")
-        row = [name, html.Span(formula, className="wrap-cell"), f"{int(r['n_obs']):,}",
-               num(r["adj_r_squared"], ".3f"), num(r["residual_se"], ",.0f")]
-        row += [num(r[c], ",.0f") for c in optional]
-        rows.append(row)
+        rows.append([name, html.Span(formula, className="wrap-cell"),
+                     f"{int(r['n_obs']):,}", num(r["adj_r_squared"], ".3f"),
+                     num(r["residual_se"], ",.0f"),
+                     num(r.get("forecast_rmse_2025"), ",.0f")])
         classes.append("is-final" if is_final else "")
 
     words = html.Span()
@@ -347,15 +347,40 @@ def fit_block(fit) -> html.Div:
              f". It was fitted on {int(f['n_obs']):,} days."],
             className="card-note", style={"marginTop": "14px", "marginBottom": 0},
         )
+
+    # Head to head: only the rows the notebook scored out of sample.
+    scored = fit[fit.get("cv_rmse", pd.Series(dtype=float)).notna()] \
+        if "cv_rmse" in fit.columns else fit.iloc[0:0]
     extra = html.Span()
-    if fit["model"].astype(str).str.contains("XGBoost", case=False).any():
-        extra = html.P(
-            "The last row is a different kind of model, scored on the same two "
-            "tests. It forecasts 2025 about 4% better and was still not chosen: "
-            "it has no coefficients to read, no residual checks, and no "
-            "two-column file a dashboard can apply. That was the notebook's "
-            "call, recorded here rather than re-argued.",
-            className="card-note", style={"marginTop": "10px", "marginBottom": 0})
+    if len(scored) > 1:
+        names = [str(m).split(",")[0] for m in scored["model"]]
+        cv = [float(v) for v in scored["cv_rmse"]]
+        fc = [float(v) for v in scored["forecast_rmse_2025"]]
+        h2h_rows = [
+            [n,
+             f"{float(r['cv_rmse']):,.0f}", num(r.get("cv_r2"), ".3f"),
+             f"{float(r['forecast_rmse_2025']):,.0f}", num(r.get("forecast_r2_2025"), ".3f")]
+            for n, (_, r) in zip(names, scored.iterrows())
+        ]
+        extra = html.Div(
+            [
+                html.H3("Head to head, out of sample", className="sub"),
+                figure(F.head_to_head(names, cv, fc), 250),
+                table(["Model", "CV RMSE", "CV R²", "2025 RMSE", "2025 R²"],
+                      h2h_rows, right_from=1),
+                html.P("A boosted tree has no adjusted R² or residual standard "
+                       "error to quote, so the two are compared where they can "
+                       "be: the same 5-fold cross-validation and the same "
+                       "held-out 2025. XGBoost wins both by roughly 4%, and the "
+                       "notebook still kept the linear model — it has "
+                       "coefficients a planner can read, residual checks, and a "
+                       "two-column file this dashboard can apply. That was its "
+                       "call, recorded here rather than re-argued.",
+                       className="card-note",
+                       style={"marginTop": "12px", "marginBottom": 0}),
+            ],
+            className="stack", style={"marginTop": "18px"},
+        )
     return html.Div([table(headers, rows, right_from=2, row_classes=classes),
                      words, extra])
 
