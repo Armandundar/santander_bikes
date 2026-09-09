@@ -1,0 +1,12 @@
+feature,vif,stage
+temp,99.22,before
+feelslike,95.96,before
+humidity,2.7,before
+precip,1.21,before
+windspeed,1.13,before
+solarradiation,2.45,before
+temp,1.54,after
+humidity,2.6,after
+precip,1.21,after
+windspeed,1.05,after
+solarradiation,2.45,after

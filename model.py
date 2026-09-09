@@ -26,9 +26,13 @@ VIF_CSV = ROOT / "model_vif.csv"
 DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 BASELINE_DAY = "Mon"
 
-# Exactly what open_meteo.py returns. A numeric term outside this set cannot be
-# forecast, because there is no weather feed to supply its value.
-FORECASTABLE = ("temp", "humidity", "precip", "windspeed", "cloudcover")
+# Every numeric term the app can actually fetch a value for. The first five come
+# straight from open_meteo.py; `solarradiation` needs the extra Open-Meteo field
+# and unit conversion that weather.py performs, following the notebook's Part 5.
+# A term outside this set cannot be forecast at all, and the app says so rather
+# than dropping it or substituting a zero.
+FORECASTABLE = ("temp", "humidity", "precip", "windspeed", "cloudcover",
+                "solarradiation")
 
 # Plain-English readings of the units, used to phrase the coefficient sentences.
 # A term absent here still works; it just gets a generic sentence.
@@ -38,6 +42,7 @@ UNITS = {
     "precip": ("one more millimetre of rain", "mm"),
     "windspeed": ("one km/h more wind", "km/h"),
     "cloudcover": ("one point more cloud", "%"),
+    "solarradiation": ("one more W/m² of sunshine", "W/m²"),
 }
 
 
@@ -120,6 +125,20 @@ def load_model(path: Path = COEFFICIENTS_CSV) -> Model:
         days={d: float(v) for d, v in days.items()},
         unforecastable=[t for t in numeric if t not in FORECASTABLE],
     )
+
+
+def numeric_sources(path: Path = COEFFICIENTS_CSV) -> dict[str, str]:
+    """The optional `source` column: where each predictor's value comes from.
+    Written by the notebook's Part 5; absent on an older two-column file."""
+    if not path.exists():
+        return {}
+    try:
+        raw = pd.read_csv(path)
+    except Exception:
+        return {}
+    if "source" not in raw.columns:
+        return {}
+    return dict(zip(raw["term"].astype(str), raw["source"].astype(str)))
 
 
 def load_fit(path: Path = FIT_CSV) -> pd.DataFrame | None:
